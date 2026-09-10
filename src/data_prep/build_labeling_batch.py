@@ -1,0 +1,61 @@
+"""
+Builds a labeling batch CSV from the stitched thread data — 
+samples one customer opening message per conversation for manual intent/escalation labeling.
+"""
+
+import argparse
+from pathlib import Path
+import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_INPUT = REPO_ROOT / "data" / "processed" / "apple_threads_full.csv"
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "golden_set"
+
+
+def main(args):
+    input_path = Path(args.input)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not input_path.exists():
+        raise FileNotFoundError(
+            f"Can't find {input_path}. Run stitch_threads.py first."
+        )
+
+    df = pd.read_csv(input_path)
+    inbound = df[df["inbound"] == True].copy()
+
+    # first customer message per conversation = the opening complaint
+    first_msgs = (
+        inbound.sort_values("created_at")
+        .groupby("conversation_root_id")
+        .first()
+        .reset_index()
+    )
+    first_msgs = first_msgs[
+        first_msgs["text"].str.contains(r"[a-zA-Z]{4,}", regex=True, na=False)
+    ]
+
+    n = min(args.n, len(first_msgs))
+    sample = first_msgs.sample(n=n, random_state=args.seed)
+
+    label_df = sample[["conversation_root_id", "tweet_id", "text"]].rename(
+        columns={"text": "customer_text"}
+    )
+    label_df["intent"] = ""
+    label_df["escalate_flag"] = ""
+    label_df["notes"] = ""
+
+    output_path = output_dir / f"labeling_{args.batch_name}.csv"
+    label_df.to_csv(output_path, index=False)
+    print(f"Wrote {len(label_df)} rows -> {output_path}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default=str(DEFAULT_INPUT))
+    parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
+    parser.add_argument("--n", type=int, default=80)
+    parser.add_argument("--seed", type=int, default=11)
+    parser.add_argument("--batch-name", default="batch_1")
+    main(parser.parse_args())
