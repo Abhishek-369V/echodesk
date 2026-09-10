@@ -1,10 +1,15 @@
 """
-constructs full multi-turn customer<->brand conversation threads from the raw Kaggle twcs.csv file, 
+Full multi-turn customer<->brand conversation threads from the raw Kaggle twcs.csv file, 
 using the in_response_to_tweet_id chain.
 """
 
 import argparse
+from pathlib import Path
 import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_INPUT = REPO_ROOT / "data" / "raw" / "twcs.csv"
+DEFAULT_OUTPUT = REPO_ROOT / "data" / "processed" / "apple_threads_full.csv"
 
 
 def build_parent_map(df: pd.DataFrame) -> dict:
@@ -31,11 +36,23 @@ def find_root(tid, parent_map, cache, max_hops=15):
 
 
 def main(args):
-    df = pd.read_csv(args.input, dtype=str)
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not input_path.exists():
+        raise FileNotFoundError(
+            f"Can't find {input_path}. Recheck file path correctly!."
+        )
+
+    df = pd.read_csv(input_path, dtype=str)
     parent_map = build_parent_map(df)
     root_cache = {}
 
     brand_tweets = df[df["author_id"] == args.brand]
+    if len(brand_tweets) == 0:
+        raise ValueError(f"No tweets found for brand '{args.brand}' -- check spelling/case.")
+
     sample_n = min(args.sample, len(brand_tweets))
     sampled_brand = brand_tweets.sample(n=sample_n, random_state=42)
 
@@ -49,29 +66,24 @@ def main(args):
     result = df[mask].copy()
     result["conversation_root_id"] = all_roots[mask]
 
-    # NOTE: broadcast tweets (e.g. general PSAs from the brand, not a reply to a specific customer) 
-    # attract many unrelated replies, which incorrectly merge into one giant "conversation." 
-    # Filter these out -- a real support conversation is a bounded back-and-forth, not a public announcement's reply thread.
     conv_sizes = result.groupby("conversation_root_id").size()
     real_conversations = conv_sizes[conv_sizes <= args.max_thread_size].index
     n_dropped = len(conv_sizes) - len(real_conversations)
     result = result[result["conversation_root_id"].isin(real_conversations)]
 
     result = result.sort_values(["conversation_root_id", "created_at"]).reset_index(drop=True)
-    result.to_csv(args.output, index=False)
+    result.to_csv(output_path, index=False)
 
     n_conv = result["conversation_root_id"].nunique()
-    print(f"Wrote {len(result)} rows across {n_conv} conversations -> {args.output}")
+    print(f"Wrote {len(result)} rows across {n_conv} conversations -> {output_path}")
     print(f"Dropped {n_dropped} oversized conversations (likely broadcast-tweet noise, >{args.max_thread_size} tweets)")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True)
+    parser.add_argument("--input", default=str(DEFAULT_INPUT))
     parser.add_argument("--brand", default="AppleSupport")
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--sample", type=int, default=3000,
-                         help="number of brand tweets to sample before stitching")
-    parser.add_argument("--max-thread-size", type=int, default=20,
-                         help="drop conversations larger than this (broadcast-tweet noise)")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--sample", type=int, default=2000)
+    parser.add_argument("--max-thread-size", type=int, default=20)
     main(parser.parse_args())
