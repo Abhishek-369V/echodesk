@@ -6,5 +6,8 @@ __pycache__/
 *.egg-info/
 .DS_Store
 
-# Large raw dataset - don't commit the full twcs.csv
+# Large raw dataset
 data/raw/twcs.csv
+
+# binary TF-IDF model file
+src/classifier/artifacts/
