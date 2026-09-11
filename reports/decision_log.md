@@ -16,3 +16,11 @@ Non-obvious calls made during this project, and why.
    we'll see how often it co-occurs with other intents vs. stands alone.
 
 <!-- Add entries as the project progresses -->
+## Day 2
+4. **Baseline classifier fails on minority intents (connectivity, account_security:
+   0% recall) — accepted as expected, not fixed.** With only 10-11 labeled examples
+   per minority class, a TF-IDF+LogReg model has no signal to learn from. Rather than
+   over-invest in fixing the trivial baseline, this is documented as a known limitation
+   that directly motivates the few-shot LLM classifier as the real approach — a model
+   is expected to generalize from a handful of examples per class in a way a purely
+   statistical model cannot.
