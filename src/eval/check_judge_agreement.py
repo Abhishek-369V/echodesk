@@ -59,8 +59,7 @@ def compare():
     print(f"Exact match: {exact_match:.0%}")
     print(f"Within 1 point: {within_1:.0%}")
     print(f"Cohen's kappa (linear weighted): {kappa:.2f}")
-    print("\nGuide: kappa > 0.6 = substantial agreement, 0.4-0.6 = moderate, < 0.4 = weak — "
-          "report this honestly, don't just report exact-match% which looks better than it is.")
+    print("\nGuide: kappa > 0.6 = substantial agreement, 0.4-0.6 = moderate, < 0.4 = weak")
 
 
 if __name__ == "__main__":
