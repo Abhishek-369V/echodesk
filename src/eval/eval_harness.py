@@ -9,6 +9,7 @@ Usage:
     python -m src.eval.eval_harness               # full golden set
     python -m src.eval.eval_harness --overwrite   # restart from scratch
 """
+
 import argparse
 import json
 import os
@@ -81,9 +82,9 @@ def main(args):
     if output_path.exists() and not args.overwrite and output_path.stat().st_size > 0:
         try:
             prior = pd.read_csv(output_path)
-            if "customer_text" in prior.columns:
+            if "conversation_root_id" in prior.columns:
                 rows = prior.to_dict("records")
-                already_done = set(prior["customer_text"])
+                already_done = set(prior["conversation_root_id"])
                 print(f"Resuming: {len(already_done)} rows already processed, skipping them")
         except Exception as e:
             print(f"Warning: Could not read existing run file ({e}). Starting fresh.")
@@ -96,37 +97,56 @@ def main(args):
     judge_client = OpenAI(api_key=api_key)
 
     for i, (_, row) in enumerate(golden.iterrows(), start=1):
-        if row["customer_text"] in already_done:
+        if row["conversation_root_id"] in already_done:
             continue
 
-        result = agent.handle(row["customer_text"])
-        judge_result = judge_reply(judge_client, row["customer_text"], result["draft_reply"])
-
-        rows.append({
-            "customer_text": row["customer_text"],
-            "true_intent": row["intent"],
-            "pred_intent": result["intent"],
-            "true_escalate": row["escalate_flag"],
-            "pred_escalate": "yes" if result["escalate"] else "no",
-            "escalation_reasons": "; ".join(result["escalation_reasons"]),
-            "draft_reply": result["draft_reply"],
-            "judge_score": judge_result.get("score"),
-            "judge_justification": judge_result.get("justification"),
-        })
+        try:
+            result = agent.handle(row["customer_text"])
+            judge_result = judge_reply(judge_client, row["customer_text"], result["draft_reply"])
+            rows.append({
+                "conversation_root_id": row["conversation_root_id"],
+                "customer_text": row["customer_text"],
+                "true_intent": row["intent"],
+                "pred_intent": result["intent"],
+                "true_escalate": row["escalate_flag"],
+                "pred_escalate": "yes" if result["escalate"] else "no",
+                "escalation_reasons": "; ".join(result["escalation_reasons"]),
+                "draft_reply": result["draft_reply"],
+                "judge_score": judge_result.get("score"),
+                "judge_justification": judge_result.get("justification"),
+            })
+            print(f"[{i}/{len(golden)}] Processed: {row['customer_text'][:55]}...")
+        except Exception as e:
+            # One bad API response should never take down the whole paid run.
+            # Log it, skip it, keep going — you can inspect/retry failed rows after.
+            rows.append({
+                "conversation_root_id": row["conversation_root_id"],
+                "customer_text": row["customer_text"],
+                "true_intent": row["intent"],
+                "pred_intent": "ERROR",
+                "true_escalate": row["escalate_flag"],
+                "pred_escalate": "ERROR",
+                "escalation_reasons": f"ERROR: {e}",
+                "draft_reply": "",
+                "judge_score": None,
+                "judge_justification": "",
+            })
+            print(f"[{i}/{len(golden)}] FAILED: {row['customer_text'][:55]}... -> {e}")
 
         # Save after every single row to make the run crash-safe and resumable
         pd.DataFrame(rows).to_csv(output_path, index=False)
-        print(f"[{i}/{len(golden)}] Processed: {row['customer_text'][:55]}...")
 
     results_df = pd.DataFrame(rows)
     results_df.to_csv(RESULTS_DIR / "eval_run.csv", index=False)
 
+    clean_df = results_df[results_df["pred_intent"] != "ERROR"]
+
     print("\n=== INTENT CLASSIFICATION ===")
-    print(classification_report(results_df["true_intent"], results_df["pred_intent"], zero_division=0))
+    print(classification_report(clean_df["true_intent"], clean_df["pred_intent"], zero_division=0))
 
     print("\n=== ESCALATION ===")
     p, r, f1, _ = precision_recall_fscore_support(
-        results_df["true_escalate"], results_df["pred_escalate"], pos_label="yes", average="binary", zero_division=0
+        clean_df["true_escalate"], clean_df["pred_escalate"], pos_label="yes", average="binary", zero_division=0
     )
     print(f"Precision: {p:.2f}, Recall: {r:.2f}, F1: {f1:.2f}")
 
