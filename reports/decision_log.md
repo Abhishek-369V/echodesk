@@ -39,3 +39,8 @@ Non-obvious calls made during this project, and why.
    added an LLM fallback that only fires when rules find nothing — keeps the
    cheap/fast/deterministic rule path for obvious cases, while catching
    nuance rules miss, without paying LLM cost on every single message.
+
+6. **Eval harness made resumable/incremental**, saving results after every
+   row instead of only at the end. A crash or early stop mid-run (e.g. at
+   row 140/176) would otherwise mean re-paying for all 140 already-completed
+   API calls on retry.
