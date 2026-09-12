@@ -77,7 +77,15 @@ class FewShotClassifier:
         try:
             result = json.loads(raw)
         except json.JSONDecodeError:
-            raise ValueError(f"Model returned non-JSON output: {raw!r}")
+            # Known GPT quirk: sometimes returns unquoted bare-word values,
+            # e.g. {"intent": software_bug, "confidence": 0.85}. Try repairing
+            # before giving up entirely.
+            import re
+            repaired = re.sub(r':\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*([,}])', r': "\1"\2', raw)
+            try:
+                result = json.loads(repaired)
+            except json.JSONDecodeError:
+                raise ValueError(f"Model returned non-JSON output even after repair attempt: {raw!r}")
         if result.get("intent") not in INTENTS:
             raise ValueError(f"Model returned invalid intent: {result.get('intent')!r}")
         return result
