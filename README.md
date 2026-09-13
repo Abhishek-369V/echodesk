@@ -9,6 +9,17 @@ An AI support agent for AppleSupport, built on the Kaggle "Customer Support on T
 
 I built this for the Hiver SDE Intern take-home assignment. The full writeup problem framing, results against baselines, failure analysis, and what's misleading about the headline numbers.. is in `reports/report.md`. This README covers setup and reproduction.
 
+## Project Deliverables at a Glance
+
+1. #### Live Streamlit Agent 
+<img src="./assets/01 App Escalation Demo.png" width="1000" alt="Streamlit UI"> 
+
+2. #### Full 176-Row Eval Run 
+<img src="assets/03 Eval Terminal Metrics.png" width="750" alt="Terminal Metrics">
+
+3. #### Metric Critique Report
+<img src="assets/02 Report Values.png" width="1100" alt="Failure Analysis">
+
 ## How the work was split
 
 | Day | Focus |
@@ -22,9 +33,16 @@ I built this for the Hiver SDE Intern take-home assignment. The full writeup pro
 
 Full reasoning behind every non-obvious call is in `reports/decision_log.md`.
 
+## System Architecture & Pipeline Flow
+
+![EchoDesk System Architecture](./assets/echodesk_workflow.svg)
+
+The pipeline balances deterministic rule-based safety for immediate escalation of profanity or repeated contact against grounded LLM generation via historical TF-IDF retrieval for routine triage.
+
 ## Repo structure
 ```
 EchoDesk/
+├── assets/               # app escalation demo.png, report values.png, terminal metrics.png, workflow.png
 ├── data/
 │   ├── raw/              # Kaggle source, Day-0 sample, dataset recon notes
 │   ├── processed/        # stitched multi-turn threads, retrieval corpus
@@ -58,6 +76,12 @@ OPENAI_API_KEY=sk-your-key-here
 3. Download the Kaggle dataset ("Customer Support on Twitter", thoughtvector),
 extract `twcs.csv`, and place it at `data/raw/twcs.csv`.
 
+4. Streamlit UI (Localhost): (*Interactive demo*)
+```bash
+streamlit run app.py
+```
+Type a customer message and see intent, draft reply, and escalation decision live. Includes a toggle for the hybrid escalation mode (off by default - see `reports/failure_analysis.md`, Failure Mode 5, for why).
+
 ## Reproducing the headline results (under 15 minutes)
 
 The golden set and processed data are already in the repo, so you don't need to regenerate them from scratch. To rerun the pipeline end to end on a small subsample:
@@ -87,23 +111,15 @@ python -m src.data_prep.build_labeling_batch --batch-name batch_1
 python -m src.classifier.baseline_classifier
 ```
 
-## Interactive demo
-
-```bash
-streamlit run app.py
-```
-
-Type a customer message and see intent, draft reply, and escalation decision live. Includes a toggle for the hybrid escalation mode (off by default - see `reports/failure_analysis.md`, Failure Mode 5, for why).
-
 ## Key findings, briefly
 
 - Few-shot LLM classification (76% accuracy) clearly beats a TF-IDF+LogReg baseline trained on the same 176 examples, especially on minority intents where there's too little data for a trained model to learn anything.
 - I tried adding an LLM fallback to the rule-based escalation logic to catch what keyword rules miss. It made things worse (precision dropped from 0.50 to 0.30), so I shipped the simpler rule-only version instead. Full numbers in `reports/failure_analysis.md`.
-- The LLM-as-judge for reply quality only ever scored replies 3 or above across all 176 examples — it never once flagged a genuinely bad reply, which caps how much the 4.09/5 headline number can be trusted on its own.
+- The LLM-as-judge for reply quality only ever scored replies 3 or above across all 176 examples, it never once flagged a genuinely bad reply, which caps how much the 4.09/5 headline number can be trusted on its own.
 
 ## Reports
 
-- `reports/eval_results/` — raw eval output CSVs
-- `reports/decision_log.md` — every non-obvious decision, in order
-- `reports/failure_analysis.md` — top 5 failure modes with real examples
-- `reports/report.md` — full writeup (problem framing, baselines quality, failure analysis, misleading-numbers section, next steps)
+- `reports/eval_results/` --> raw eval output CSVs
+- `reports/decision_log.md` --> every non-obvious decision, in order
+- `reports/failure_analysis.md` --> top 5 failure modes with real examples
+- `reports/report.md` --> full writeup (problem framing, baselines quality, failure analysis, misleading-numbers section, next steps)
