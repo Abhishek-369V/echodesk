@@ -5,9 +5,10 @@ Eval harness: runs the agent against the golden set and computes
   3. Reply quality via LLM-as-judge (rubric-scored), with human-agreement check
 
 Usage:
-    python -m src.eval.eval_harness --limit 20    # cheap sanity check first
-    python -m src.eval.eval_harness               # full golden set
-    python -m src.eval.eval_harness --overwrite   # restart from scratch
+    python -m src.eval.eval_harness --limit 20
+    python -m src.eval.eval_harness
+    python -m src.eval.eval_harness --use-llm-escalation-fallback
+    python -m src.eval.eval_harness --overwrite
 """
 
 import argparse
@@ -93,7 +94,8 @@ def main(args):
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY not set. Check your .env file.")
 
-    agent = EchoDeskAgent()
+    agent = EchoDeskAgent(use_llm_escalation_fallback=args.use_llm_escalation_fallback)
+    print(f"Escalation mode: {'HYBRID (rule + LLM fallback)' if args.use_llm_escalation_fallback else 'RULE-ONLY'}")
     judge_client = OpenAI(api_key=api_key)
 
     for i, (_, row) in enumerate(golden.iterrows(), start=1):
@@ -117,8 +119,6 @@ def main(args):
             })
             print(f"[{i}/{len(golden)}] Processed: {row['customer_text'][:55]}...")
         except Exception as e:
-            # One bad API response should never take down the whole paid run.
-            # Log it, skip it, keep going — you can inspect/retry failed rows after.
             rows.append({
                 "conversation_root_id": row["conversation_root_id"],
                 "customer_text": row["customer_text"],
@@ -137,16 +137,13 @@ def main(args):
         pd.DataFrame(rows).to_csv(output_path, index=False)
 
     results_df = pd.DataFrame(rows)
-    results_df.to_csv(RESULTS_DIR / "eval_run.csv", index=False)
-
-    clean_df = results_df[results_df["pred_intent"] != "ERROR"]
 
     print("\n=== INTENT CLASSIFICATION ===")
-    print(classification_report(clean_df["true_intent"], clean_df["pred_intent"], zero_division=0))
+    print(classification_report(results_df["true_intent"], results_df["pred_intent"], zero_division=0))
 
     print("\n=== ESCALATION ===")
     p, r, f1, _ = precision_recall_fscore_support(
-        clean_df["true_escalate"], clean_df["pred_escalate"], pos_label="yes", average="binary", zero_division=0
+        results_df["true_escalate"], results_df["pred_escalate"], pos_label="yes", average="binary", zero_division=0
     )
     print(f"Precision: {p:.2f}, Recall: {r:.2f}, F1: {f1:.2f}")
 
@@ -162,4 +159,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None, help="run on a subset first to control API cost")
     parser.add_argument("--overwrite", action="store_true", help="overwrite existing eval_run.csv instead of resuming")
+    parser.add_argument("--use-llm-escalation-fallback", action="store_true",
+                         help="enable hybrid escalation (rule + LLM fallback). Without this flag, escalation is rule-only.")
     main(parser.parse_args())
