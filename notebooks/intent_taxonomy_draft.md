@@ -1,17 +1,15 @@
-# Intent Taxonomy — Draft v1 (from manual read of 80 AppleSupport threads)
+# Intent Taxonomy - Draft v1 (from manual read of 80 AppleSupport threads)
 
-Brand: **AppleSupport**
-Source: `data/raw/apple_threads_sample_8k.csv` (7,982 stitched customer→AppleSupport first-turn threads)
-Sample reviewed: `data/raw/manual_read_sample_80.csv`
+- Brand: **AppleSupport**
+- Source: `data/raw/apple_threads_sample_8k.csv` (7,982 stitched customer→AppleSupport first-turn threads)
+- Sample reviewed: `data/raw/manual_read_sample_80.csv`
 
 ## Observed patterns
-- Heavy recurring theme: iOS 11 update complaints (this dataset is from Oct-Nov 2017,
-  right after iOS 11 launch — the "autocorrect capital I" bug shows up constantly)
+
+- Heavy recurring theme: iOS 11 update complaints (this dataset is from Oct-Nov 2017, right after iOS 11 launch, the "autocorrect capital I" bug shows up constantly)
 - Battery complaints are extremely common and often tied to a specific iOS version
-- Repeat complainers: many customers say "you already told me to do X, it didn't work"
-  — this is escalation-worthy signal
-- Frustration/profanity is common in the customer's opening tweet — tone alone
-  isn't a reliable escalation signal, needs to be combined with "already tried fix" signal
+- Repeat complainers: many customers say "you already told me to do X, it didn't work" - this is escalation-worthy signal
+- Frustration/profanity is common in the customer's opening tweet...So tone alone isn't a reliable escalation signal, needs to be combined with "already tried fix" signal
 
 ## Locked intents (v2) - 5 intents + 1 escalation flag
 
