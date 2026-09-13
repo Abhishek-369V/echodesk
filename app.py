@@ -1,12 +1,3 @@
-"""
-Minimal interactive demo of the EchoDesk agent — lets you type a customer
-message and see the full pipeline output (intent, grounded reply, escalation
-decision + reason) live, rather than only via CLI.
-"""
-
-import sys
-from pathlib import Path
-
 import streamlit as st
 
 from dotenv import load_dotenv
