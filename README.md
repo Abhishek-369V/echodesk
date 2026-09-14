@@ -9,13 +9,20 @@ An AI support agent for AppleSupport, built on the Kaggle "Customer Support on T
 
 I built this for the Hiver SDE Intern take-home assignment. The full writeup problem framing, results against baselines, failure analysis, and what's misleading about the headline numbers.. is in `reports/report.md`. This README covers setup and reproduction.
 
+## 🎥 Demo Walkthrough & Visual Proof
+
+[![Watch the EchoDesk Demo Walkthrough](https://img.shields.io/badge/YouTube-Watch_Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=saDvaC2olpc)
+
+> **Video Walkthrough**: [Click here to watch the 3-minute demo](https://www.youtube.com/watch?v=saDvaC2olpc) covering routine triage, high-similarity retrieval, rule-based escalation, and the hybrid LLM fallback evaluation.
+
+
 ## Project Deliverables at a Glance
 
 1. #### Live Streamlit Agent 
 <img src="./assets/01 App Escalation Demo.png" width="1000" alt="Streamlit UI"> 
 
 2. #### Full 176-Row Eval Run 
-<img src="assets/03 Eval Terminal Metrics.png" width="750" alt="Terminal Metrics">
+<img src="assets/03 Eval Terminal Metrics.png" width="600" alt="Terminal Metrics">
 
 3. #### Metric Critique Report
 <img src="assets/02 Report Values.png" width="1100" alt="Failure Analysis">
@@ -35,7 +42,7 @@ Full reasoning behind every non-obvious call is in `reports/decision_log.md`.
 
 ## System Architecture & Pipeline Flow
 
-![EchoDesk System Architecture](./assets/echodesk_workflow.svg)
+![EchoDesk System Architecture](./assets/Echodesk%20Workflow.svg)
 
 The pipeline balances deterministic rule-based safety for immediate escalation of profanity or repeated contact against grounded LLM generation via historical TF-IDF retrieval for routine triage.
 
